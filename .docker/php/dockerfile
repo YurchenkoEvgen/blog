@@ -1,0 +1,46 @@
+FROM php:8.1-fpm
+WORKDIR '/app'
+# Update
+RUN apt-get update && apt-get upgrade -y \
+# Install package
+  && apt-get install -y git unzip mc nano libicu-dev gnupg2 apt-utils libzip-dev libpng-dev libxslt1-dev libssl-dev  \
+    curl zip unzip tar cmake iputils-ping acl \
+# Install AMQP
+  && mkdir /src  \
+  && cd /src \
+  && git clone https://github.com/alanxz/rabbitmq-c \
+  && cd rabbitmq-c \
+  && mkdir build && cd build \
+  && cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. \
+  && cmake --build . --target install \
+  && sed 's/Version:/Version: 0.9.1/g' -i /usr/local/lib/pkgconfig/librabbitmq.pc \
+  && cd /src \
+  && git clone https://github.com/php-amqp/php-amqp \
+  && cd php-amqp \
+  && phpize \
+  && ./configure \
+  && make \
+  && make install \
+  && echo extension=amqp >> /usr/local/etc/php/conf.d/docker-rabbit.ini \
+# Install YARN
+  && curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/yarnkey.gpg \
+  && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
+  && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+  && apt-get update && apt-get -y install nodejs yarn \
+# Xdebug
+  && yes | pecl install xdebug \
+  && echo "zend_extension=$(find /usr/local/lib/php/extensions/ -name xdebug.so)" > /usr/local/etc/php/conf.d/xdebug.ini \
+  && echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/xdebug.ini \
+  && echo "xdebug.remote_autostart=off" >> /usr/local/etc/php/conf.d/xdebug.ini \
+# INSTALL APCU
+  && yes | pecl install apcu \
+  && docker-php-ext-enable apcu \
+  && echo "extension=apcu.so" > /usr/local/etc/php/php.ini \
+  && echo "apc.enable_cli=1" > /usr/local/etc/php/php.ini \
+  && echo "apc.enable=1" > /usr/local/etc/php/php.ini \
+# PHP SQL OPcache ZIP GD...
+  && docker-php-ext-install pdo pdo_mysql intl opcache zip gd xsl \
+# PCNTL
+  && docker-php-ext-configure pcntl --enable-pcntl && docker-php-ext-install pcntl \
+# Install Composer
+  && curl -sS https://getcomposer.org/installer | php -- --install-dir=/bin --filename=composer && composer --version

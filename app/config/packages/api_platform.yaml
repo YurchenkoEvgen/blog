@@ -1,0 +1,13 @@
+api_platform:
+    title: 'Blog API'
+    version: 0.9
+    enable_swagger_ui: false
+    formats:
+        jsonld:   ['application/ld+json']
+        json:     ['application/json']
+        html:     ['text/html']
+#    swagger:
+#        api_keys:
+#            JWT:
+#                name: Authorization
+#                type: header
