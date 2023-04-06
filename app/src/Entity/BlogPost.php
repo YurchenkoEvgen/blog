@@ -4,13 +4,17 @@ namespace App\Entity;
 
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Repository\BlogPostRepository;
+use App\Security\Voter\BlogPostVoter;
 use App\State\BlogPostCreateProcessor;
+use App\Validator\BlogPostTitle;
+use App\Validator\CategoryPostCountMax;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -19,16 +23,19 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BlogPostRepository::class)]
+#[ApiResource(order: ['createdAt' => 'DESC'])]
 #[ApiFilter(SearchFilter::class, properties: ['category' => 'exact'])]
-#[Get(normalizationContext: ['groups' => ['post:read']])]
+#[Get(
+    normalizationContext: ['groups' => ['post:read']]
+)]
 #[GetCollection(
     normalizationContext: ['groups' => 'post:read']
 )]
 #[Post(
     normalizationContext: ['groups' => ['post:response']],
-    denormalizationContext: ['groups' => ['post:edit']],
-    security: "is_granted('ROLE_ADMIN')",
-    validationContext: ['groups' => ['post:edit']],
+    denormalizationContext: ['groups' => ['post:create']],
+    securityPostDenormalize: "is_granted('" . BlogPostVoter::CREATE . "', object)",
+    validationContext: ['groups' => ['post:create']],
     processor: BlogPostCreateProcessor::class
 )]
 #[Patch(
@@ -46,13 +53,14 @@ class BlogPost
     private ?int $id = null;
 
     #[ORM\Column(length: 1024)]
-    #[Assert\NotBlank(groups: ['post:edit'])]
-    #[Groups(['post:response', 'post:edit', 'post:update', 'post:read'])]
+    #[Assert\NotBlank(groups: ['post:create'])]
+    #[Groups(['post:response', 'post:create', 'post:update', 'post:read'])]
+    #[BlogPostTitle(groups: ['post:create'])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Assert\NotBlank(groups: ['post:edit'])]
-    #[Groups(['post:response', 'post:edit', 'post:update', 'post:read'])]
+    #[Assert\NotBlank(groups: ['post:create'])]
+    #[Groups(['post:response', 'post:create', 'post:update', 'post:read'])]
     private ?string $content = null;
 
     #[ORM\ManyToOne(inversedBy: 'blogPosts')]
@@ -61,12 +69,21 @@ class BlogPost
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'blogPosts')]
-    #[Groups(['post:edit', 'post:update', 'post:response', 'post:read'])]
+    #[Groups(['post:create', 'post:update', 'post:response', 'post:read'])]
+    #[CategoryPostCountMax(groups: ['post:create'])]
     private ?Category $category = null;
 
     #[ORM\OneToMany(mappedBy: 'blogPost', targetEntity: Comment::class, orphanRemoval: true)]
     #[Groups(['post:read'])]
     private Collection $comments;
+
+    #[ORM\Column]
+    #[Groups(['post:read', 'post:create', 'post:update', 'post:response'])]
+    private bool $active = false;
+
+    #[ORM\Column]
+    #[Groups(['post:read', 'post:response'])]
+    private ?\DateTimeImmutable $createdAt = null;
 
     public function __construct()
     {
@@ -152,6 +169,30 @@ class BlogPost
                 $comment->setBlogPost(null);
             }
         }
+
+        return $this;
+    }
+
+    public function isActive(): ?bool
+    {
+        return $this->active;
+    }
+
+    public function setActive(bool $active): self
+    {
+        $this->active = $active;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?\DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(\DateTimeImmutable $createdAt): self
+    {
+        $this->createdAt = $createdAt;
 
         return $this;
     }
