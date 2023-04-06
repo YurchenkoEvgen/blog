@@ -21,6 +21,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: BlogPostRepository::class)]
 #[ApiResource(order: ['createdAt' => 'DESC'])]
@@ -195,5 +196,12 @@ class BlogPost
         $this->createdAt = $createdAt;
 
         return $this;
+    }
+
+    #[Assert\Callback(groups: ['post:create', 'post:update'])]
+    public function validateCustom(ExecutionContextInterface $context, $payload) {
+        if (strlen($this->getTitle()) > 10 && $this->getCategory()->getId() == 1) {
+            $context->buildViolation("Title is so long")->atPath('title')->addViolation();
+        }
     }
 }
