@@ -75,7 +75,7 @@ class BlogPost
     #[CategoryPostCountMax(groups: ['post:create'])]
     private ?Category $category = null;
 
-    #[ORM\OneToMany(mappedBy: 'blogPost', targetEntity: Comment::class, orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'blogPost', targetEntity: Comment::class, orphanRemoval: true, cascade: ['persist'])]
     #[Groups(['post:read'])]
     private Collection $comments;
 

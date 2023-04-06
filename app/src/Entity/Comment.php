@@ -2,14 +2,15 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
-use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Link;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Repository\CommentRepository;
+use App\State\CommentCreateProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -18,14 +19,43 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CommentRepository::class)]
+#[ApiResource(
+    uriTemplate: '/blog_posts/{post_id}/comments/{id}',
+    uriVariables: [
+        'post_id' => new Link(
+            toProperty: 'blogPost',
+            fromClass: BlogPost::class
+        ),
+        'id' => new Link(
+            fromClass: Comment::class
+        )
+    ]
+)]
 #[Get(normalizationContext: ['groups' => ['comment:read']])]
-#[GetCollection(normalizationContext: ['groups' => ['comment:read']])]
-#[ApiFilter(SearchFilter::class, properties: ['blogPost' => 'exact'])]
+#[GetCollection(
+    uriTemplate: '/blog_posts/{post_id}/comments',
+    uriVariables: [
+        'post_id' => new Link(
+            toProperty: 'blogPost',
+            fromClass: BlogPost::class
+        )
+    ],
+    normalizationContext: ['groups' => ['comment:read']]
+)]
 #[Post(
+    uriTemplate: '/blog_posts/{post_id}/comments',
+    uriVariables: [
+        'post_id' => new Link(
+            fromClass: BlogPost::class,
+            toProperty: 'blogPost'
+        )
+    ],
     normalizationContext: ['groups' => ['comment:read']],
     denormalizationContext: ['groups' => ['comment:edit']],
     security: "is_granted('ROLE_USER')",
-    validationContext: ['groups' => ['comment:edit']]
+    validationContext: ['groups' => ['comment:edit']],
+    read: false,
+    processor: CommentCreateProcessor::class
 )]
 #[Patch(
     normalizationContext: ['groups' => ['comment:read']],
@@ -57,13 +87,12 @@ class Comment
     private ?self $parent = null;
 
     #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class)]
-    #[Groups(['comment:read', 'comment:edit'])]
+    #[Groups(['comment:read'])]
     private Collection $comments;
 
-    #[ORM\ManyToOne(inversedBy: 'comments')]
+    #[ORM\ManyToOne(targetEntity: BlogPost::class, inversedBy: 'comments', cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
-    #[Assert\NotBlank(groups: ['comment:edit'])]
-    #[Groups(['comment:read', 'comment:edit'])]
+    #[Groups(['comment:read'])]
     private ?BlogPost $blogPost = null;
 
     public function __construct()
