@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\Post;
 use App\Repository\BlogPostRepository;
 use App\Security\Voter\BlogPostVoter;
 use App\State\BlogPostCreateProcessor;
+use App\Validator\BlogPostCustomValidator;
 use App\Validator\BlogPostTitle;
 use App\Validator\CategoryPostCountMax;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -21,7 +22,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: BlogPostRepository::class)]
 #[ApiResource(order: ['createdAt' => 'DESC'])]
@@ -45,6 +45,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
     security: "is_granted('ROLE_ADMIN')"
 )]
 #[Delete(security: "is_granted('ROLE_ADMIN')")]
+#[Assert\Callback([BlogPostCustomValidator::class, 'validate'], groups: ['post:create', 'post:update'])]
 class BlogPost
 {
     #[ORM\Id]
@@ -196,12 +197,5 @@ class BlogPost
         $this->createdAt = $createdAt;
 
         return $this;
-    }
-
-    #[Assert\Callback(groups: ['post:create', 'post:update'])]
-    public function validateCustom(ExecutionContextInterface $context, $payload) {
-        if (strlen($this->getTitle()) > 10 && $this->getCategory()->getId() == 1) {
-            $context->buildViolation("Title is so long")->atPath('title')->addViolation();
-        }
     }
 }
