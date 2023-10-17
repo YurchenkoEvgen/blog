@@ -24,7 +24,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BlogPostRepository::class)]
-#[ApiResource(order: ['createdAt' => 'DESC'])]
+#[ApiResource(
+    order: ['createdAt' => 'DESC'],
+    mercure: [
+        'private' => true
+    ]
+)]
 #[ApiFilter(SearchFilter::class, properties: ['category' => 'exact'])]
 #[Get(
     normalizationContext: ['groups' => ['post:read']]
@@ -42,7 +47,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[Patch(
     normalizationContext: ['groups' => ['post:read']],
     denormalizationContext: ['groups' => ['post:update']],
-    security: "is_granted('ROLE_ADMIN')"
+//    security: "is_granted('ROLE_ADMIN')"
 )]
 #[Delete(security: "is_granted('ROLE_ADMIN')")]
 #[Assert\Callback([BlogPostCustomValidator::class, 'validate'], groups: ['post:create', 'post:update'])]
